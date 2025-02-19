@@ -1,4 +1,4 @@
-# Grid: TicTacToe
+# Grid: HangMan
 ## Feladat
 Solution neve: **HangMan**
 
