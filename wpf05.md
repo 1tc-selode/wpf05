@@ -99,7 +99,17 @@ Projekt leírása: hozz létre egy 2x2-as Grid-et, aminek az bal felső celláj�
 </Window>
 ```
 
-6.  - Felveszünk egy words listát, ez fogja tárolni az összes szót a txt fájlunkból
+6. A MainWindowben meghívjuk a LoadWords és InitializeWord függvényt, hogy egyből lefussanak.
+```C#
+public MainWindow()
+{
+    InitializeComponent();
+    LoadWords();
+    InitializeWord();
+}
+```
+
+7.  - Felveszünk egy words listát, ez fogja tárolni az összes szót a txt fájlunkból
     - A string currentWord, ide fog lementődni egy randomszó
     - Button alapú Lista - wordButtons, ez fogja tárolni a random generált szónak a betűjeit buttonokban
     - Az int mistakeCount fogja
@@ -110,8 +120,159 @@ public string currentWord;
 private List<Button> wordButtons = new List<Button>();
 public int mistakeCount = 0;
 ```
+8. Az alábbi függvénybe fogjuk a words listába lementeni a words listába a szavakat a txt fájlból
+```C#
+private void LoadWords()
+{
+    using (StreamReader sr = new StreamReader("szavak.txt", Encoding.UTF8))
+    {
+        string line;
+        while ((line = sr.ReadLine()) != null)
+        {
+            words.Add(line);
+        }
+    }
+}
+```
+9. A GetRandomWord nevű függvénnyben random kiválaszt a words listának a hosszából, Count-ból egy számot és vissza return-eljük a words listából az adott indexű szót
+```C#
+public string GetRandomWord()
+{
+    Random rnd = new Random();
+    int randomIndex = rnd.Next(words.Count);
+    return words[randomIndex];
+}
+```
+10. Itt a currentWord-be mentjük el, amit kívűl publikusan létrehoztunk már. Majd végig megyünk az adott szón és minden egyes betűnél létrehozunk a wordGrid-ben egy új oszlpot, meg létrehozunk bele egy buttont aminek a contentje egy alsóvonal lesz, megadunk a button-nek egy 50 width-et, a fontsize 30, height 50 és margint, hogy ne folyjanak egybe a buttonok. Majd ezt a buttont, átadjuk a wordGrid-hez az adott buttont. Beállítjuk hogy az button mindig az i-edik oszlopba kerüljön bele, így egymás mellé kerülnek nem egymásra. Majd a wordButtons-ba beletöltjük a button contentjét (ez jelenleg egy alsóvonal).
+```C#
+private void InitializeWord()
+{
+    currentWord = GetRandomWord();
 
+    for (int i = 0; i < currentWord.Length; i++)
+    {
+        wordGrid.ColumnDefinitions.Add(new ColumnDefinition());
 
+        Button btn = new Button();
+        btn.Content = "_";
+        btn.FontSize = 30;
+        btn.Width = 50;
+        btn.Height = 50;
+        btn.Margin = new Thickness(5);
+
+        wordGrid.Children.Add(btn);
+        Grid.SetColumn(btn, i);
+        wordButtons.Add(btn);
+    }
+}
+```
+
+11. A Button_Click metódus-ban meg kell állapítani, hogy melyik gombon történt a kattintás, ezt az object típusú sender paraméter tartalmazza. Az object típus lehetővé teszi, hogy bármilyen típusú objektumot átadjunk az eseménykezelőnek, mert minden típus az object típusból származik, így az object típusú referencia bármilyen típusú objektumra mutathat. Az eseménykezelőn belül típuskonverziót végzünk a sender paraméteren, hogy a konkrét típusú objektumhoz férjünk hozzá. Például, ha a sender egy gomb, akkor Button típusra konvertáljuk, hogy a gomb tulajdonságait módosíthassuk. is operátor: ellenőrízzük, hogy a sender egy adott típusú objektum-e.
+```C#
+private void Button_Click(object sender, RoutedEventArgs e)
+{
+    if (sender is Button button)
+    {
+        
+    }
+}
+```
+12. Majd a button-t ami le lett nyomva, lementjük kisbetűként egy string letter változóba, és megnézzük:
+    - ha a random szó amit generáltunk, currentWord, tartalmazza e az adott betűt amit lenyomtunk, akkor az adott button háttere zöld lesz, és egy for ciklussal végig megyünk a currentWord-ön, és megnézzük, hanyadik betűvel/betűkkel azonos a mi általunk választott betű, és amelyikkel azonos, annak a contentjét átállítjuk az adott betűre. És a végén egy CheckWin függvényel megnézzük, hogy vége e a játéknak.
+    - ha nem tartalmazza az adott betűt, akkor az adott gombot disable-jük, így nem tudjuk máskor használni, megjelenítjük az akasztófa képet aminek a vége egy szám, ami azonos a hibaszámláló számával. Majd növeljük a hibaszámlálót is, és megnézzük a CheckLoss függvényel hogy veszítettünk e.
+```C#
+private void Button_Click(object sender, RoutedEventArgs e)
+{
+    if (sender is Button button)
+    {
+        string letter = button.Content.ToString().ToLower();
+        if (currentWord.Contains(letter))
+        {
+            button.Background = Brushes.Green;
+            for (int i = 0; i < currentWord.Length; i++)
+            {
+                if (currentWord[i].ToString().ToLower() == letter)
+                {
+                    wordButtons[i].Content = letter.ToUpper();
+                }
+            }
+            CheckWin();
+        }
+        else
+        {
+            button.IsEnabled = false;
+            hangmanImage.Source = new BitmapImage(new Uri($"C:\\Users\\1tc-selode\\OneDrive\\wpf\\HangMan\\HangMan\\bin\\Debug\\net8.0-windows\\Images\\akasztofa{mistakeCount}.png", UriKind.Absolute));
+            mistakeCount++;
+            CheckLoss();
+        }
+    }
+}
+```
+13. Itt megézzük hogy nyertünk e linq segítségével, ha a wordButton, ahol a generált szó van, aminek eleinte a contentje alsóvonal volt, ha az összes button eleme nem egyenlő alsóvonallal, akkor az azt jelenti hogy az összes betűt kitaláltuk. Ha igen akkor a lettersGrid-ben az összes button értékét disable-eljük mert már nincs hova tippelni ha kitaláltuk a szót, és kiírjuk jobb felűlre, hogy nyertünk, és hogy mennyi rossz tippel.
+```C#
+private void CheckWin()
+{
+    if (wordButtons.All(b => b.Content.ToString() != "_"))
+    {
+        foreach (var child in lettersGrid.Children)
+        {
+            if (child is Button button)
+            {
+                button.IsEnabled = false;
+            }
+        }
+        attemptsCount.Text = $"Gratulálok. {mistakeCount} rossz tippel kitaláltad!";
+    }
+}
+```
+14. Itt megézzük hogy veszítettünk e, ha a elértük a 11 hibát, akkor szintén disable-ljük az összes gombot, és kiírjuk hogy vesztettünk és mi volt az adott szó.
+```C#
+private void CheckLoss()
+{
+    if (mistakeCount == 11)
+    {
+        foreach (var child in lettersGrid.Children)
+        {
+            if (child is Button button)
+            {
+                button.IsEnabled = false;
+            }
+        }
+        attemptsCount.Text = $"Sajnos vesztettél, a szó {currentWord} volt.";
+    }
+}
+```
+15. Ha rámegyünk a következő button-ra, akkor meghívjuk az újraindító függvényt.
+```C#
+private void ButtonNext_Click(object sender, RoutedEventArgs e)
+{
+    ResetGame();
+}
+```
+16. Lenullázuk a hibaszámlálót, meg a jobb felső szöveget üressé tesszük, újra generálunk egy új random szót, kitöröljk a wordGrid-ben a gyerekeket, oszlopokat és buttoneket. Majd meghívjuk az InitializeWord függvényt, hogy egy új kitalálandó szavat hozzon létre. És a lettersGrid-ben az összes buttont enable-ljük meg vissza állítjuka  színét. És a jobb alsó képet beállítjuk nullra.
+```C#
+private void ResetGame()
+{
+    mistakeCount = 0;
+    attemptsCount.Text = "";
+    wordGrid.Children.Clear();
+    wordGrid.ColumnDefinitions.Clear();
+    wordButtons.Clear();
+
+    InitializeWord();
+
+    foreach (var child in lettersGrid.Children)
+    {
+        if (child is Button button)
+        {
+            button.IsEnabled = true;
+            button.Background = Brushes.LightGray;
+        }
+    }
+
+    hangmanImage.Source = null;
+}
+```
 <details>
 <summary>Nyiss le az xaml forrásért!</summary> 
 
@@ -263,7 +424,6 @@ namespace HangMan
 
         private void InitializeWord()
         {
-            List<Button> buttons = new List<Button>();
             currentWord = GetRandomWord();
 
             for (int i = 0; i < currentWord.Length; i++)
@@ -272,8 +432,6 @@ namespace HangMan
 
                 Button btn = new Button();
                 btn.Content = "_";
-                btn.Tag = currentWord[i].ToString();
-                btn.Name = "LetterButton" + i;
                 btn.FontSize = 30;
                 btn.Width = 50;
                 btn.Height = 50;
@@ -289,28 +447,11 @@ namespace HangMan
         {
             mistakeCount = 0;
             attemptsCount.Text = "";
-            currentWord = GetRandomWord();
             wordGrid.Children.Clear();
             wordGrid.ColumnDefinitions.Clear();
             wordButtons.Clear();
 
-            for (int i = 0; i < currentWord.Length; i++)
-            {
-                wordGrid.ColumnDefinitions.Add(new ColumnDefinition());
-
-                Button btn = new Button();
-                btn.Content = "_";
-                btn.Tag = currentWord[i].ToString();
-                btn.Name = "LetterButton" + i;
-                btn.FontSize = 30;
-                btn.Width = 50;
-                btn.Height = 50;
-                btn.Margin = new Thickness(5);
-
-                wordGrid.Children.Add(btn);
-                Grid.SetColumn(btn, i);
-                wordButtons.Add(btn);
-            }
+            InitializeWord();
 
             foreach (var child in lettersGrid.Children)
             {
@@ -358,28 +499,25 @@ namespace HangMan
         {
             if (sender is Button button)
             {
-                if (mistakeCount <= 11)
+                string letter = button.Content.ToString().ToLower();
+                if (currentWord.Contains(letter))
                 {
-                    string letter = button.Content.ToString().ToLower();
-                    if (currentWord.Contains(letter))
+                    button.Background = Brushes.Green;
+                    for (int i = 0; i < currentWord.Length; i++)
                     {
-                        button.Background = Brushes.Green;
-                        for (int i = 0; i < currentWord.Length; i++)
+                        if (currentWord[i].ToString().ToLower() == letter)
                         {
-                            if (currentWord[i].ToString().ToLower() == letter)
-                            {
-                                wordButtons[i].Content = letter.ToUpper();
-                            }
+                            wordButtons[i].Content = letter.ToUpper();
                         }
-                        CheckWin();
                     }
-                    else
-                    {
-                        button.IsEnabled = false;
-                        hangmanImage.Source = new BitmapImage(new Uri($"C:\\Users\\1tc-selode\\OneDrive\\wpf\\HangMan\\HangMan\\bin\\Debug\\net8.0-windows\\Images\\akasztofa{mistakeCount}.png", UriKind.Absolute));
-                        mistakeCount++;
-                        CheckLoss();
-                    }
+                    CheckWin();
+                }
+                else
+                {
+                    button.IsEnabled = false;
+                    hangmanImage.Source = new BitmapImage(new Uri($"C:\\Users\\1tc-selode\\OneDrive\\wpf\\HangMan\\HangMan\\bin\\Debug\\net8.0-windows\\Images\\akasztofa{mistakeCount}.png", UriKind.Absolute));
+                    mistakeCount++;
+                    CheckLoss();
                 }
             }
         }
